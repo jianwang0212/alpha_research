@@ -147,7 +147,7 @@ def predict_result_in_sample_frequency_determine(df_all,sample_frequency):
     ols_result=[Rsquared,Coefficients,t_stats]
     return ols_result
 
-def predict_result_in_sample(df_train, threshold):
+def predict_result_in_sample(df_train, threshold, close_position = True):
     y = np.array(df_train['Y'])
     X = np.array(df_train['X'])
     est = sm.OLS(y, X)
@@ -163,14 +163,25 @@ def predict_result_in_sample(df_train, threshold):
 
     df_train['result_direction'] = df_train.apply(lambda x: 1 if x["Y"]*x["predicted_y_trancated"]>0 else 0, axis = 1)
     df_train['result_direction'] = df_train.apply(lambda x: -1 if x["Y"]*x["predicted_y_trancated"]<0 else x["result_direction"], axis = 1)
+    
+    df_train["direction"] = df_train['predicted_y_trancated'].apply(lambda x: 1 if x>0 else -1)
+    df_train["direction"] = df_train.apply(lambda x: 0 if x['result_direction'].round() == 0 else x['direction'], axis = 1)
+    
+    print(f"hit ratio is: {df_train[['result_direction']].value_counts(normalize= True)}")
+    if close_position:
+        df_train["bal"] = df_train["direction"] #close position when that second end
 
-    df_train[['result_direction']].value_counts(normalize= True)
+        
+        df_train["result_abs"] = df_train.apply(lambda x: x["bal"] * x["Y"], axis = 1 )        
+        df_train["result_abs_cum_sum"] = df_train["result_abs"].cumsum()
+        df_train["result_abs_cum_sum"].plot()
+    else:
 
-    df_train["result_abs"] = df_train.apply(lambda x: np.absolute(x["Y"]) if x["result_direction"]>0 else -np.absolute(x["Y"]), axis = 1 )
-
-    df_train.loc[df_train['result_direction'].round() == 0 ,"result_abs"]= 0 
-    df_train["result_abs_cum_sum"] = df_train["result_abs"].cumsum()
-    df_train["result_abs_cum_sum"].plot()
+        df_train["bal"] = df_train["direction"].cumsum() # not close position
+        
+        df_train["result_abs"] = df_train.apply(lambda x: x["bal"] * x["Y"], axis = 1 )        
+        df_train["result_abs_cum_sum"] = df_train["result_abs"].cumsum()
+        df_train["result_abs_cum_sum"].plot()
     return df_train
 
 
@@ -253,3 +264,26 @@ def ARDL_model(df_all, AR_lags_value, DL_lags_value, interactive = False):
     est2 = est.fit()
     print(est2.summary())
 
+def plot_fill(df_od,ax):
+    for i,row in df_od.iterrows():
+        color = "r" if row["bid_x"].startswith("f") else "g"
+        style = color + 'o'
+        ax.plot(row["_time_y"],float(row['price_y']),style,markersize = 10)
+        ax.hlines(y=float(row["price_x"]),xmin=row["_time_x"],xmax=row["_time_y"],colors = color,linewidth = 3)
+        ax.hlines(y=float(row["fairPrice_x"]),xmin=row["_time_x"],xmax=row["_time_y"],colors = 'yellow',linewidth = 3)
+        
+def plot_can(df_od,ax):
+    for i,row in df_od.iterrows():
+        color = "r" if row["bid_x"].startswith("f") else "g"
+        style = color + 'X'
+        ax.plot(row["_time_y"],float(row['price_y']),style,markersize = 10)
+        ax.hlines(y=float(row["price_x"]),xmin=row["_time_x"],xmax=row["_time_y"],colors = color,linewidth = 3)
+        ax.hlines(y=float(row["fairPrice_x"]),xmin=row["_time_x"],xmax=row["_time_y"],colors = 'yellow',linewidth = 3)
+def plot_book(df,ax):
+    cols = ["fair_px","bidL1px","askL1px"]
+    colors = ["black","green","red"]
+    df.plot(ax=ax,y=cols,drawstyle="steps-post",legend=False,linewidth=1,color=colors)
+
+def plot_sig(df,ax):
+    df["sig"] = df.signed_volume 
+    df.plot(ax =ax,y ="sig",drawstyle="steps-post",legend=False,linewidth=0.5,color="blue",grid=True)
