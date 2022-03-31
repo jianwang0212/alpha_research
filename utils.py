@@ -284,6 +284,6 @@ def plot_book(df,ax):
     colors = ["black","green","red"]
     df.plot(ax=ax,y=cols,drawstyle="steps-post",legend=False,linewidth=1,color=colors)
 
-def plot_sig(df,ax):
-    df["sig"] = df.signed_volume 
-    df.plot(ax =ax,y ="sig",drawstyle="steps-post",legend=False,linewidth=0.5,color="blue",grid=True)
+def plot_sig(df,sig,ax):
+
+    df.plot(ax =ax,y =sig,drawstyle="steps-post",legend=False,linewidth=0.5,color="blue",grid=True)
